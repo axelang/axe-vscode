@@ -1,0 +1,208 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Axe",
+  "scopeName": "source.axe",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#types"
+    },
+    {
+      "include": "#functions"
+    },
+    {
+      "include": "#operators"
+    },
+    {
+      "include": "#constants"
+    },
+    {
+      "include": "#raw-blocks"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.axe",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.axe",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.single.axe",
+          "begin": "'",
+          "end": "'",
+          "contentName": "meta.string.axe",
+          "patterns": [
+            {
+              "name": "constant.character.escape.axe",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.double.axe",
+          "begin": "\"",
+          "end": "\"",
+          "contentName": "meta.string.axe",
+          "patterns": [
+            {
+              "name": "constant.character.escape.axe",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.multiline.axe",
+          "begin": "`",
+          "end": "`",
+          "contentName": "meta.string.axe",
+          "patterns": [
+            {
+              "name": "constant.character.escape.axe",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.float.axe",
+          "match": "\\b\\d+\\.\\d+([eE][+-]?\\d+)?\\b"
+        },
+        {
+          "name": "constant.numeric.integer.axe",
+          "match": "\\b\\d+\\b"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.axe",
+          "match": "\\b(if|elif|else|for|in|switch|case|default|parallel|single|loop|break|continue|return|while|test|assert|use|platform|windows|posix|and|or|mod|enum|union|unsafe|opaque|extern)\\b"
+        },
+        {
+          "name": "keyword.other.axe",
+          "match": "\\b(pub|def|val|mut|model|macro|raw|overload|list)\\b"
+        },
+        {
+          "name": "storage.modifier.axe",
+          "match": "\\b(ref|ref_of|addr_of|cast)\\b"
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "storage.type.axe",
+          "match": "\\b(u8|i8|u16|i16|u32|i32|u64|i64|f32|f64|bool|char|void|usize|generic|untyped)\\b"
+        },
+        {
+          "name": "storage.type.pointer.axe",
+          "match": "\\bchar\\*\\b"
+        },
+        {
+          "name": "entity.name.type.axe",
+          "match": "\\b[A-Z][a-zA-Z0-9_]*\\b"
+        }
+      ]
+    },
+    "functions": {
+      "patterns": [
+        {
+          "name": "entity.name.function.axe",
+          "match": "\\b(def|macro)\\s+([a-zA-Z_][a-zA-Z0-9_]*)",
+          "captures": {
+            "1": {
+              "name": "keyword.other.axe"
+            },
+            "2": {
+              "name": "entity.name.function.axe"
+            }
+          }
+        },
+        {
+          "name": "entity.name.function.call.axe",
+          "match": "\\b([a-z_][a-zA-Z0-9_]*)\\s*\\("
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.arithmetic.axe",
+          "match": "\\+|\\-|\\*|\\/|%"
+        },
+        {
+          "name": "keyword.operator.comparison.axe",
+          "match": "==|!=|<|>|<=|>="
+        },
+        {
+          "name": "keyword.operator.logical.axe",
+          "match": "\\b(and|or)\\b"
+        },
+        {
+          "name": "keyword.operator.assignment.axe",
+          "match": "="
+        }
+      ]
+    },
+    "constants": {
+      "patterns": [
+        {
+          "name": "constant.language.boolean.axe",
+          "match": "\\b(true|false)\\b"
+        },
+        {
+          "name": "constant.language.null.axe",
+          "match": "\\bnil\\b"
+        },
+        {
+          "name": "constant.other.axe",
+          "match": "\\b[A-Z_][A-Z0-9_]*\\b"
+        }
+      ]
+    },
+    "raw-blocks": {
+      "patterns": [
+        {
+          "name": "meta.embedded.block.c",
+          "begin": "\\braw\\s*\\{",
+          "end": "\\}",
+          "beginCaptures": {
+            "0": {
+              "name": "keyword.other.axe"
+            }
+          },
+          "patterns": [
+            {
+              "include": "source.c"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
