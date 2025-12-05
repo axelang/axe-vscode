@@ -18,6 +18,7 @@ function activate(context) {
 
     const config = vscode.workspace.getConfiguration('axe.lsp');
     let serverPath = config.get('serverPath', '');
+    let stdlibPath = config.get('stdlibPath', '');
 
     if (!serverPath) {
         serverPath = process.platform === 'win32' ? 'axels.exe' : 'axels';
@@ -27,9 +28,17 @@ function activate(context) {
         console.log(`[axe-ext] configured serverPath=${serverPath}`);
     }
 
+    let serverArgs = [];
+    if (stdlibPath) {
+        serverArgs.push('--stdlib', stdlibPath);
+        outputChannel.appendLine(`Using stdlib path: ${stdlibPath}`);
+        console.log(`[axe-ext] configured stdlibPath=${stdlibPath}`);
+    }
+
     const serverOptions = {
         run: {
             command: serverPath,
+            args: serverArgs,
             transport: TransportKind.stdio,
             options: {
                 env: { ...process.env, AXELS_DEBUG: '1' }
@@ -37,6 +46,7 @@ function activate(context) {
         },
         debug: {
             command: serverPath,
+            args: serverArgs,
             transport: TransportKind.stdio,
             options: {
                 env: { ...process.env, AXELS_DEBUG: '1' }

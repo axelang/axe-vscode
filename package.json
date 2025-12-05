@@ -50,6 +50,11 @@
           "default": "",
           "description": "Path to the Axe language server executable. If empty, uses 'axels' or 'axels.exe' from PATH."
         },
+        "axe.lsp.stdlibPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the Axe standard library directory. If empty, uses AXE_HOME/std or default system path."
+        },
         "axe.lsp.trace": {
           "type": "string",
           "enum": [
