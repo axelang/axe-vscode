@@ -120,7 +120,7 @@ function activate(context) {
     // Generic notification logger
     client.onNotification((method, params) => {
         try {
-            if (!method.startsWith('window/') && !method.startsWith('$/')) {
+            if (!method.startsWith('window/') && !method.startsWith('$/') && method !== 'textDocument/publishDiagnostics') {
                 outputChannel.appendLine(`[LSP] Notification: ${method}`);
                 if (params) {
                     outputChannel.appendLine(`  Params: ${JSON.stringify(params, null, 2)}`);
@@ -253,7 +253,7 @@ To restart the server, run command: "Axe: Restart Language Server"`;
         outputChannel.appendLine(`Document: ${editor.document.uri.toString()}`);
         outputChannel.appendLine(`Client State: ${client ? client.state : 'no-client'}`);
 
-            const callPos = new vscode.Position(7, 6);
+        const callPos = new vscode.Position(7, 6);
         editor.selection = new vscode.Selection(callPos, callPos);
 
         try {
@@ -265,7 +265,7 @@ To restart the server, run command: "Axe: Restart Language Server"`;
 
             if (hovers && hovers.length > 0) {
                 outputChannel.appendLine(`✓ Got ${hovers.length} hover result(s)`);
-                    const containsDoc = hovers.some(h => h.contents && h.contents.some(c => (typeof c === 'string' && c.includes('This is a docstring')) || (c.value && c.value.includes && c.value.includes('This is a docstring'))));
+                const containsDoc = hovers.some(h => h.contents && h.contents.some(c => (typeof c === 'string' && c.includes('This is a docstring')) || (c.value && c.value.includes && c.value.includes('This is a docstring'))));
                 if (containsDoc) outputChannel.appendLine('✓ Hover contains docstring');
                 else outputChannel.appendLine('✗ Hover does not contain expected docstring');
             } else {
@@ -354,7 +354,28 @@ To restart the server, run command: "Axe: Restart Language Server"`;
         outputChannel.show(true);
     });
 
-    context.subscriptions.push(showDebug, restartServer, testCompletion, testHover, testDocumentSymbols);
+    const testDiagnostics = vscode.commands.registerCommand('axe.lsp.testDiagnostics', async () => {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) return vscode.window.showErrorMessage('No active editor');
+
+        outputChannel.appendLine('\n=== Testing Diagnostics ===');
+        outputChannel.appendLine(`Document URI: ${editor.document.uri.toString()}`);
+        outputChannel.appendLine(`Document Language: ${editor.document.languageId}`);
+
+        const diagnostics = vscode.languages.getDiagnostics(editor.document.uri);
+        if (!diagnostics || diagnostics.length === 0) {
+            outputChannel.appendLine('✗ No diagnostics found for this file');
+            outputChannel.appendLine('  Tip: Try saving the file or making an edit to trigger diagnostics');
+        } else {
+            outputChannel.appendLine(`✓ Got ${diagnostics.length} diagnostic(s)`);
+            diagnostics.forEach((d, i) => {
+                outputChannel.appendLine(`  [${i}] Line ${d.range.start.line + 1}: ${d.message}`);
+            });
+        }
+        outputChannel.show(true);
+    });
+
+    context.subscriptions.push(showDebug, restartServer, testCompletion, testHover, testDocumentSymbols, testDiagnostics);
 }
 
 function deactivate() {
