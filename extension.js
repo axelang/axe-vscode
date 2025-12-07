@@ -1,5 +1,9 @@
 const vscode = require('vscode');
 const { LanguageClient, TransportKind, State } = require('vscode-languageclient/node');
+const https = require('https');
+const fs = require('fs');
+const path = require('path');
+const { execSync } = require('child_process');
 
 let client;
 let outputChannel;
@@ -11,22 +15,180 @@ const lspMessageType = {
     4: 'Log'
 };
 
-function activate(context) {
+/**
+ * Check if a command exists in PATH
+ */
+function commandExists(command) {
+    try {
+        if (process.platform === 'win32') {
+            execSync(`where ${command}`, { stdio: 'ignore' });
+        } else {
+            execSync(`which ${command}`, { stdio: 'ignore' });
+        }
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+/**
+ * Download a file from a URL
+ */
+function downloadFile(url, dest) {
+    return new Promise((resolve, reject) => {
+        const file = fs.createWriteStream(dest);
+        https.get(url, (response) => {
+            if (response.statusCode === 302 || response.statusCode === 301) {
+                file.close();
+                fs.unlinkSync(dest);
+                return downloadFile(response.headers.location, dest).then(resolve).catch(reject);
+            }
+            
+            if (response.statusCode !== 200) {
+                file.close();
+                fs.unlinkSync(dest);
+                reject(new Error(`Failed to download: ${response.statusCode}`));
+                return;
+            }
+
+            response.pipe(file);
+            file.on('finish', () => {
+                file.close();
+                resolve();
+            });
+        }).on('error', (err) => {
+            file.close();
+            fs.unlinkSync(dest);
+            reject(err);
+        });
+    });
+}
+
+/**
+ * Fetch latest release info from GitHub
+ */
+function getLatestRelease() {
+    return new Promise((resolve, reject) => {
+        const options = {
+            hostname: 'api.github.com',
+            path: '/repos/axelang/axels/releases/latest',
+            method: 'GET',
+            headers: {
+                'User-Agent': 'axe-vscode-extension'
+            }
+        };
+
+        https.get(options, (res) => {
+            let data = '';
+            res.on('data', (chunk) => data += chunk);
+            res.on('end', () => {
+                if (res.statusCode === 200) {
+                    resolve(JSON.parse(data));
+                } else {
+                    reject(new Error(`GitHub API returned ${res.statusCode}`));
+                }
+            });
+        }).on('error', reject);
+    });
+}
+
+/**
+ * Download and setup the LSP server
+ */
+async function ensureLSPServer(context) {
+    const config = vscode.workspace.getConfiguration('axe.lsp');
+    let serverPath = config.get('serverPath', '');
+
+    if (serverPath) {
+        outputChannel.appendLine(`Using configured serverPath: ${serverPath}`);
+        return serverPath;
+    }
+
+    const defaultCommand = process.platform === 'win32' ? 'axels.exe' : 'axels';
+    if (commandExists(defaultCommand)) {
+        outputChannel.appendLine(`Found ${defaultCommand} in PATH`);
+        return defaultCommand;
+    }
+
+    outputChannel.appendLine('LSP not found in PATH. Checking for downloaded version...');
+
+    const storagePath = context.globalStorageUri.fsPath;
+    if (!fs.existsSync(storagePath)) {
+        fs.mkdirSync(storagePath, { recursive: true });
+    }
+
+    const binaryName = process.platform === 'win32' ? 'axels.exe' : 'axels';
+    const localBinaryPath = path.join(storagePath, binaryName);
+
+    if (fs.existsSync(localBinaryPath)) {
+        outputChannel.appendLine(`Using previously downloaded LSP: ${localBinaryPath}`);
+        if (process.platform !== 'win32') {
+            fs.chmodSync(localBinaryPath, 0o755);
+        }
+        return localBinaryPath;
+    }
+
+    outputChannel.appendLine('Downloading latest LSP from GitHub...');
+    try {
+        const release = await getLatestRelease();
+        outputChannel.appendLine(`Latest release: ${release.tag_name}`);
+
+        let assetName;
+        if (process.platform === 'win32') {
+            assetName = 'axels-windows.exe';
+        } else if (process.platform === 'darwin') {
+            assetName = 'axels-macos';
+        } else {
+            assetName = 'axels-linux';
+        }
+
+        const asset = release.assets.find(a => a.name === assetName);
+        if (!asset) {
+            throw new Error(`No binary found for platform: ${process.platform} (looking for ${assetName})`);
+        }
+
+        outputChannel.appendLine(`Downloading ${asset.name}...`);
+        await vscode.window.withProgress({
+            location: vscode.ProgressLocation.Notification,
+            title: 'Downloading Axe LSP',
+            cancellable: false
+        }, async (progress) => {
+            progress.report({ message: 'Downloading...' });
+            await downloadFile(asset.browser_download_url, localBinaryPath);
+            progress.report({ message: 'Download complete.' });
+        });
+
+        if (process.platform !== 'win32') {
+            fs.chmodSync(localBinaryPath, 0o755);
+        }
+
+        outputChannel.appendLine(`✓ LSP downloaded successfully to: ${localBinaryPath}`);
+        vscode.window.showInformationMessage('Axe LSP downloaded successfully.');
+        return localBinaryPath;
+
+    } catch (err) {
+        outputChannel.appendLine(`✗ Failed to download LSP: ${err.message}`);
+        vscode.window.showErrorMessage(`Failed to download Axe LSP: ${err.message}`);
+        throw err;
+    }
+}
+
+async function activate(context) {
     outputChannel = vscode.window.createOutputChannel('Axe LSP');
     outputChannel.appendLine('Activating Axe LSP extension...');
     console.log('[axe-ext] Activating Axe LSP extension');
 
-    const config = vscode.workspace.getConfiguration('axe.lsp');
-    let serverPath = config.get('serverPath', '');
-    let stdlibPath = config.get('stdlibPath', '');
-
-    if (!serverPath) {
-        serverPath = process.platform === 'win32' ? 'axels.exe' : 'axels';
-        outputChannel.appendLine(`Using default server executable: ${serverPath}`);
-    } else {
-        outputChannel.appendLine(`Using configured serverPath: ${serverPath}`);
-        console.log(`[axe-ext] configured serverPath=${serverPath}`);
+    let serverPath;
+    try {
+        serverPath = await ensureLSPServer(context);
+    } catch (err) {
+        outputChannel.appendLine(`Failed to obtain LSP server: ${err}`);
+        vscode.window.showErrorMessage('Axe LSP: Failed to obtain language server');
+        return;
     }
+
+    const config = vscode.workspace.getConfiguration('axe.lsp');
+    let stdlibPath = config.get('stdlibPath', '');
 
     let serverArgs = [];
     if (stdlibPath) {
@@ -375,7 +537,73 @@ To restart the server, run command: "Axe: Restart Language Server"`;
         outputChannel.show(true);
     });
 
-    context.subscriptions.push(showDebug, restartServer, testCompletion, testHover, testDocumentSymbols, testDiagnostics);
+    const updateLSP = vscode.commands.registerCommand('axe.lsp.update', async () => {
+        outputChannel.appendLine('\n=== Updating Axe LSP ===');
+        
+        const storagePath = context.globalStorageUri.fsPath;
+        const binaryName = process.platform === 'win32' ? 'axels.exe' : 'axels';
+        const localBinaryPath = path.join(storagePath, binaryName);
+
+        if (fs.existsSync(localBinaryPath)) {
+            try {
+                fs.unlinkSync(localBinaryPath);
+                outputChannel.appendLine('Removed old LSP binary');
+            } catch (err) {
+                outputChannel.appendLine(`Warning: Could not remove old binary: ${err.message}`);
+            }
+        }
+
+        try {
+            if (client) {
+                await client.stop();
+                outputChannel.appendLine('Stopped current LSP client');
+            }
+
+            outputChannel.appendLine('Downloading latest LSP from GitHub...');
+            const release = await getLatestRelease();
+            outputChannel.appendLine(`Latest release: ${release.tag_name}`);
+
+            let assetName;
+            if (process.platform === 'win32') {
+                assetName = 'axels.exe';
+            } else if (process.platform === 'darwin') {
+                assetName = 'axels-macos';
+            } else {
+                assetName = 'axels-linux';
+            }
+
+            const asset = release.assets.find(a => a.name === assetName);
+            if (!asset) {
+                throw new Error(`No binary found for platform: ${process.platform}`);
+            }
+
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: 'Updating Axe LSP',
+                cancellable: false
+            }, async (progress) => {
+                progress.report({ message: 'Downloading...' });
+                await downloadFile(asset.browser_download_url, localBinaryPath);
+                progress.report({ message: 'Download complete!' });
+            });
+
+            if (process.platform !== 'win32') {
+                fs.chmodSync(localBinaryPath, 0o755);
+            }
+
+            outputChannel.appendLine(`✓ LSP updated successfully to: ${localBinaryPath}`);
+            vscode.window.showInformationMessage('Axe LSP updated! Restarting language server...');
+
+            await client.start();
+            outputChannel.appendLine('✓ Language server restarted with new version');
+
+        } catch (err) {
+            outputChannel.appendLine(`✗ Update failed: ${err.message}`);
+            vscode.window.showErrorMessage(`Failed to update Axe LSP: ${err.message}`);
+        }
+    });
+
+    context.subscriptions.push(showDebug, restartServer, testCompletion, testHover, testDocumentSymbols, testDiagnostics, updateLSP);
 }
 
 function deactivate() {

@@ -77,6 +77,10 @@
         "title": "Axe: Restart Language Server"
       },
       {
+        "command": "axe.lsp.update",
+        "title": "Axe: Update Language Server"
+      },
+      {
         "command": "axe.lsp.testCompletion",
         "title": "Axe: Test Completion"
       },
