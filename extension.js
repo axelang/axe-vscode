@@ -43,7 +43,7 @@ function downloadFile(url, dest) {
                 fs.unlinkSync(dest);
                 return downloadFile(response.headers.location, dest).then(resolve).catch(reject);
             }
-            
+
             if (response.statusCode !== 200) {
                 file.close();
                 fs.unlinkSync(dest);
@@ -104,19 +104,6 @@ async function ensureLSPServer(context) {
         return serverPath;
     }
 
-    const defaultCommand = process.platform === 'win32' ? 'axels.exe' : 'axels';
-    if (commandExists(defaultCommand)) {
-        outputChannel.appendLine(`Found ${defaultCommand} in PATH`);
-        return defaultCommand;
-    }
-
-    outputChannel.appendLine('LSP not found in PATH. Checking for downloaded version...');
-
-    const storagePath = context.globalStorageUri.fsPath;
-    if (!fs.existsSync(storagePath)) {
-        fs.mkdirSync(storagePath, { recursive: true });
-    }
-
     var binaryName = process.platform === 'win32'
     if (process.platform === 'win32') {
         binaryName = "axels.exe";
@@ -124,6 +111,18 @@ async function ensureLSPServer(context) {
         binaryName = "axels-macos";
     } else {
         binaryName = "axels-linux";
+    }
+
+    if (commandExists(binaryName)) {
+        outputChannel.appendLine(`Found ${binaryName} in PATH`);
+        return binaryName;
+    }
+
+    outputChannel.appendLine('LSP not found in PATH. Checking for downloaded version...');
+
+    const storagePath = context.globalStorageUri.fsPath;
+    if (!fs.existsSync(storagePath)) {
+        fs.mkdirSync(storagePath, { recursive: true });
     }
 
     const localBinaryPath = path.join(storagePath, binaryName);
@@ -546,7 +545,7 @@ To restart the server, run command: "Axe: Restart Language Server"`;
 
     const updateLSP = vscode.commands.registerCommand('axe.lsp.update', async () => {
         outputChannel.appendLine('\n=== Updating Axe LSP ===');
-        
+
         const storagePath = context.globalStorageUri.fsPath;
         const binaryName = process.platform === 'win32' ? 'axels.exe' : 'axels';
         const localBinaryPath = path.join(storagePath, binaryName);
