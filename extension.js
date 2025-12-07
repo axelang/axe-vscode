@@ -117,9 +117,16 @@ async function ensureLSPServer(context) {
         fs.mkdirSync(storagePath, { recursive: true });
     }
 
-    const binaryName = process.platform === 'win32' ? 'axels.exe' : 'axels';
-    const localBinaryPath = path.join(storagePath, binaryName);
+    var binaryName = process.platform === 'win32'
+    if (process.platform === 'win32') {
+        binaryName = "axels.exe";
+    } else if (process.platform === 'darwin') {
+        binaryName = "axels-macos";
+    } else {
+        binaryName = "axels-linux";
+    }
 
+    const localBinaryPath = path.join(storagePath, binaryName);
     if (fs.existsSync(localBinaryPath)) {
         outputChannel.appendLine(`Using previously downloaded LSP: ${localBinaryPath}`);
         if (process.platform !== 'win32') {
@@ -135,7 +142,7 @@ async function ensureLSPServer(context) {
 
         let assetName;
         if (process.platform === 'win32') {
-            assetName = 'axels-windows.exe';
+            assetName = 'axels.exe';
         } else if (process.platform === 'darwin') {
             assetName = 'axels-macos';
         } else {
