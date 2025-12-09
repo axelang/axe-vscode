@@ -230,7 +230,14 @@ async function activate(context) {
             fileEvents: vscode.workspace.createFileSystemWatcher('**/*.{axe,axec}')
         },
         outputChannel: outputChannel,
-        traceOutputChannel: outputChannel
+        traceOutputChannel: outputChannel,
+        middleware: {
+            provideSignatureHelp: (document, position, context, token, next) => {
+                outputChannel.appendLine(`[DEBUG] Signature help requested at ${position.line}:${position.character}`);
+                console.log(`[axe-ext] Signature help requested at ${position.line}:${position.character}`);
+                return next(document, position, context, token);
+            }
+        }
     };
 
     client = new LanguageClient(
