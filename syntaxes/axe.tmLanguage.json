@@ -101,7 +101,7 @@
       "patterns": [
         {
           "name": "keyword.control.axe",
-          "match": "\\b(if|elif|else|for|in|switch|case|default|parallel|single|loop|break|continue|return|while|test|assert|use|platform|windows|posix|and|or|to|mod|enum|union|unsafe|opaque|extern|foreign)\\b"
+          "match": "\\b(if|elif|else|for|in|switch|case|default|parallel|single|loop|break|continue|return|while|test|assert|use|platform|and|or|to|mod|enum|union|unsafe|opaque|extern|foreign)\\b"
         },
         {
           "name": "keyword.other.axe",
