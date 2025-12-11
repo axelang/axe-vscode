@@ -4,10 +4,7 @@ Axe is a statically typed, compiled programming language that centred around eas
 
 ## Requirements
 
-For full LSP support, you need the Axe LSP server (`axe-lsp` or `axe-lsp.exe`) installed:
-
-1. Build from source: `cd tooling/axe-lsp && ../../axe lsp_server.axe -o axe-lsp`
-2. Place in your PATH, or configure the path in settings
+For full LSP support, you need the Axe LSP server (`axels`) in your system PATH.
 
 ## Extension Settings
 
